@@ -5,6 +5,7 @@ services:
 
 stages:
   - build
+  - deploy
 
 build_image:
   stage: build
@@ -15,5 +16,25 @@ build_image:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker build --pull -t $IMAGE_TAG -f docker/Dockerfile .
     - docker push $IMAGE_TAG
+  only:
+    - master
+
+deploy_service:
+  stage: deploy
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+    DOCKER_HOST: ssh://ubuntu@54.193.78.64
+    DOCKER_STACK: myproject
+  before_script:
+    - apk update
+    - apk add openssh
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H 54.193.78.64 >> ~/.ssh/known_hosts
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | ssh-add -
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
+    - docker stack deploy --with-registry-auth -c docker/docker-compose.yml $DOCKER_STACK
   only:
     - master

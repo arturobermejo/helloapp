@@ -1,0 +1,13 @@
+version: "3.2"
+
+services:
+  helloapp:
+    image: "${IMAGE_TAG}"
+    deploy:
+      replicas: 2
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "8000:5000"
